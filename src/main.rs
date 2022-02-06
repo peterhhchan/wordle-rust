@@ -41,12 +41,17 @@ fn build_fact(f: Feedback, l: char, p: usize) -> Fact {
 struct GuessResult {
     guess: Word,
     guesses: usize,
+    num_candidates: usize,
 }
 
 impl fmt::Display for GuessResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s: String = self.guess.into_iter().collect();
-        write!(f, "Word: {:?} Guesses: {}", s, self.guesses)
+        let s: String = self.guess.iter().collect();
+        write!(
+            f,
+            "Word: {:?} Guesses: {} Num: {}",
+            s, self.guesses, self.num_candidates
+        )
     }
 }
 
@@ -94,6 +99,7 @@ fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
         GuessResult {
             guess: candidates[0],
             guesses: 1,
+            num_candidates: candidates.len(),
         }
     } else if candidates.is_empty() {
         panic!();
@@ -115,6 +121,7 @@ fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
                 GuessResult {
                     guess: *g,
                     guesses: 1 + gs,
+                    num_candidates: candidates.len(),
                 }
             })
             .reduce(|best_guess, item| {
@@ -145,6 +152,7 @@ fn solve(words: &Words, guesses: &Words) -> Vec<GuessResult> {
             GuessResult {
                 guess: *g,
                 guesses: 1 + gs,
+                num_candidates: guesses.len(),
             }
         })
         .collect()
@@ -237,7 +245,7 @@ fn main() {
 
     println!("{}", words.len());
 
-    //concise(&words);
+    concise2(&words);
 
     //let res = best_guess(&words[..30].to_vec(), &Vec::new());
     //println!("Result: {:?}", res);
@@ -256,6 +264,16 @@ fn concise(words: &Words) {
     let correct: Vec<(char, usize)> = Vec::new();
     let used: Vec<(char, usize)> = vec![('n', 4), ('n', 1), ('t', 0)];
     let not_used = "raisc";
+
+    let facts = factify(&correct, &used, not_used);
+    let gr = best_guess(words, &facts);
+    println!("Best guess: {:?}", gr);
+}
+
+fn concise2(words: &Words) {
+    let correct: Vec<(char, usize)> = vec![('i', 2)];
+    let used: Vec<(char, usize)> = vec![('k', 3), ('k', 4)];
+    let not_used = "choequrflf";
 
     let facts = factify(&correct, &used, not_used);
     let gr = best_guess(words, &facts);
