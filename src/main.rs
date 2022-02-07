@@ -1,4 +1,4 @@
-use std::cmp;
+use rayon::prelude::*;
 use std::convert::TryInto;
 use std::fmt;
 use std::fs;
@@ -56,7 +56,7 @@ impl fmt::Display for GuessResult {
 }
 
 fn check(answer: &Word, guess: &Word) -> Facts {
-    let mut res = Vec::new();
+    let mut res: Facts = Vec::new();
     for i in 0..WORD_LENGTH {
         if guess[i] == answer[i] {
             res.push(build_fact(Feedback::Correct, guess[i], i));
@@ -93,8 +93,9 @@ fn filter_words(words: &Words, facts: &Facts) -> Words {
 }
 
 // exhaustive search for the word which minimizes the number of guesses
+// TODO - add a check to prevent the search from going too deep
 fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
-    let candidates = filter_words(&words, &facts);
+    let candidates: Words = filter_words(words, facts);
     if candidates.len() == 1 {
         GuessResult {
             guess: candidates[0],
@@ -105,16 +106,16 @@ fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
         panic!();
     } else {
         candidates
-            .iter()
-            .map(|g| {
+            .par_iter()
+            .map(|g: &Word| {
                 let gs = candidates
                     .iter()
-                    .map(|w| {
-                        let mut res = check(&w, &g);
-                        let mut new_facts = facts.to_vec();
-                        res.append(&mut new_facts);
+                    .map(|w: &Word| {
+                        let mut new_facts: Facts = check(w, g);
+                        let mut prev_facts: Facts = facts.to_vec();
+                        new_facts.append(&mut prev_facts);
 
-                        best_guess(&candidates, &res)
+                        best_guess(&candidates, &new_facts)
                     })
                     .fold(0, |sum, item| sum + item.guesses);
 
@@ -124,9 +125,9 @@ fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
                     num_candidates: candidates.len(),
                 }
             })
-            .reduce(|best_guess, item| {
-                if item.guesses < best_guess.guesses {
-                    item
+            .reduce_with(|best_guess, gr| {
+                if gr.guesses < best_guess.guesses {
+                    gr
                 } else {
                     best_guess
                 }
@@ -135,14 +136,13 @@ fn best_guess(words: &Words, facts: &Facts) -> GuessResult {
     }
 }
 
-// exhaustive search using best_uess, will return the number of guesses for each word
+// exhaustive search using best_guess, will return the number of guesses for each word
 fn solve(words: &Words, guesses: &Words) -> Vec<GuessResult> {
     guesses
         .iter()
         .map(|g| {
             let gs = words
                 .iter()
-                //                .filter(|&w| !w.contains(&'z') || !w.contains(&'q') || !w.contains(&'w'))
                 .map(|w| {
                     let fs = check(w, g);
                     best_guess(words, &fs)
@@ -245,7 +245,7 @@ fn main() {
 
     println!("{}", words.len());
 
-    concise2(&words);
+    concise(&words);
 
     //let res = best_guess(&words[..30].to_vec(), &Vec::new());
     //println!("Result: {:?}", res);
@@ -261,19 +261,9 @@ fn main() {
 // Examples
 
 fn concise(words: &Words) {
-    let correct: Vec<(char, usize)> = Vec::new();
-    let used: Vec<(char, usize)> = vec![('n', 4), ('n', 1), ('t', 0)];
-    let not_used = "raisc";
-
-    let facts = factify(&correct, &used, not_used);
-    let gr = best_guess(words, &facts);
-    println!("Best guess: {:?}", gr);
-}
-
-fn concise2(words: &Words) {
-    let correct: Vec<(char, usize)> = vec![('i', 2)];
-    let used: Vec<(char, usize)> = vec![('k', 3), ('k', 4)];
-    let not_used = "choequrflf";
+    let correct: Vec<(char, usize)> = vec![('l', 1)];
+    let used: Vec<(char, usize)> = vec![('l', 3), ('l', 0)];
+    let not_used = "chaps";
 
     let facts = factify(&correct, &used, not_used);
     let gr = best_guess(words, &facts);
